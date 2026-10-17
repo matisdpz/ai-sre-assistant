@@ -17,7 +17,7 @@ concurrency:
 jobs:
   backend:
     name: Backend (lint, migrations, tests)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
@@ -61,7 +61,7 @@ jobs:
 
   frontend:
     name: Frontend (types, tests, build)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
@@ -86,7 +86,7 @@ jobs:
 
   docker:
     name: Docker images build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7.0.1
       - name: Build backend image
