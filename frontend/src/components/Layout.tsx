@@ -49,7 +49,7 @@ export function Layout({ children }: { children: ReactNode }) {
             {data?.ai.enabled ? "AI assistant on" : "AI assistant off"}
           </div>
           <div className="simulated-tag" role="note">
-            Simulated data - no real infrastructure is monitored
+            Simulated data: no real infrastructure is monitored
           </div>
         </div>
       </aside>
