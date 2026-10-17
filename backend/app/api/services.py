@@ -30,10 +30,11 @@ def service_metrics(
     service_id: str,
     session: SessionDep,
     since: Annotated[AwareDatetime | None, Query(description="Only samples after this")] = None,
+    until: Annotated[AwareDatetime | None, Query(description="Only samples up to this")] = None,
     limit: Annotated[int, Query(ge=1, le=2000)] = 360,  # 1 hour at one sample per 10 s
 ) -> list[MetricPointOut]:
     """Simulated metric samples of one service, oldest first (for charts)."""
     if repository.get_service(session, service_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="service not found")
-    rows = repository.snapshots_since(session, service_id, since, limit)
+    rows = repository.snapshots_since(session, service_id, since, limit, until)
     return [MetricPointOut.model_validate(row) for row in rows]

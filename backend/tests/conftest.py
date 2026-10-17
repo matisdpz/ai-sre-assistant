@@ -69,7 +69,9 @@ def clean_db(migrated_engine: Engine) -> Iterator[Engine]:
     The seeded services are kept."""
     yield migrated_engine
     with migrated_engine.begin() as connection:
-        connection.execute(text("TRUNCATE incident_events, incidents, metric_snapshots"))
+        connection.execute(
+            text("TRUNCATE incident_diagnoses, incident_events, incidents, metric_snapshots")
+        )
 
 
 @pytest.fixture

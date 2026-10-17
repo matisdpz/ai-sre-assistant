@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app import incident_manager, repository
 from app.db import get_session
 from app.models import IncidentStatus
-from app.schemas import IncidentDetailOut, IncidentOut, StatusChangeIn
+from app.schemas import IncidentDetailOut, IncidentOut, IncidentSummaryOut, StatusChangeIn
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/incidents", tags=["incidents"])
@@ -29,6 +29,13 @@ def list_incidents(
         session, status=status_filter, service_id=service_id, limit=limit, offset=offset
     )
     return [IncidentOut.model_validate(incident) for incident in incidents]
+
+
+# Declared before /{incident_id}, which would otherwise try to parse "summary" as a UUID.
+@router.get("/summary", response_model=IncidentSummaryOut)
+def incident_summary(session: SessionDep) -> IncidentSummaryOut:
+    """Counts by status and the classic SRE response times (MTTA, MTTR)."""
+    return IncidentSummaryOut(**repository.incident_summary(session))
 
 
 @router.get("/{incident_id}", response_model=IncidentDetailOut)

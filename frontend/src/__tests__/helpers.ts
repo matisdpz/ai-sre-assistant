@@ -1,14 +1,15 @@
 import { vi } from "vitest";
 
-import type { IncidentDetail } from "../types";
+import type { Diagnosis, IncidentDetail } from "../types";
 
-type Route = (url: string, init?: RequestInit) => { status?: number; body: unknown } | undefined;
+export type Reply = { status?: number; body: unknown } | undefined;
+type Route = (url: string, init?: RequestInit) => Reply;
 
 /** Replace fetch with a router of canned JSON responses; returns the mock for assertions. */
 export function mockFetch(route: Route) {
   const mock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
-    const reply = route(url, init);
+    const reply = route(url, init) ?? defaults(url);
     if (!reply) throw new Error(`unexpected request: ${init?.method ?? "GET"} ${url}`);
     return new Response(JSON.stringify(reply.body), {
       status: reply.status ?? 200,
@@ -17,6 +18,27 @@ export function mockFetch(route: Route) {
   });
   vi.stubGlobal("fetch", mock);
   return mock;
+}
+
+/** Answers for the calls every page makes (sidebar, rules...), unless a test overrides them. */
+function defaults(url: string): Reply {
+  if (url === "/api/v1/services") {
+    return {
+      body: [
+        { id: "api-gateway", name: "API Gateway", description: "", active_incidents: 0 },
+        { id: "payment-service", name: "Payment Service", description: "", active_incidents: 1 },
+      ],
+    };
+  }
+  if (url === "/api/v1/incidents/summary") {
+    return { body: { open: 1, acknowledged: 0, resolved: 2, mtta_seconds: 95, mttr_seconds: 600 } };
+  }
+  if (url === "/api/v1/ai/status") return { body: { enabled: false, provider: null, model: null } };
+  if (url === "/api/v1/rules") return { body: [] };
+  if (url.includes("/metrics")) return { body: [] };
+  if (url.endsWith("/diagnosis")) return { status: 404, body: { detail: "no diagnosis yet" } };
+  if (url.startsWith("/api/v1/incidents?")) return { body: [] };
+  return undefined;
 }
 
 export function incident(overrides: Partial<IncidentDetail> = {}): IncidentDetail {
@@ -53,3 +75,23 @@ export function incident(overrides: Partial<IncidentDetail> = {}): IncidentDetai
     ...overrides,
   };
 }
+
+export const DIAGNOSIS: Diagnosis = {
+  id: "diag-1",
+  incident_id: "inc-1",
+  provider: "gemini",
+  model: "gemini-3.5-flash-lite",
+  created_at: "2026-01-01T12:05:00Z",
+  facts: ["Average p95 latency: 180.0 ms before the incident, 1300.0 ms during it (+622%)."],
+  summary: "Errors and latency rose together.",
+  hypotheses: [
+    {
+      title: "Database dependency degraded",
+      reasoning: "Latency and errors increased at the same time.",
+      confidence: "medium",
+      supporting_facts: [],
+    },
+  ],
+  suggested_checks: ["Check database-service metrics for the same period."],
+  disclaimer: "AI-generated hypotheses from simulated data. Not a confirmed root cause: verify before acting.",
+};

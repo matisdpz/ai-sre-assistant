@@ -5,10 +5,12 @@ deterministic rules and helps an engineer investigate them.
 
 > All telemetry is **simulated**. Nothing here monitors real infrastructure.
 
-**Status:** Milestone 5. A simulator generates fake metrics and failure scenarios, the
-backend detects incidents with deterministic rules, and a React dashboard shows services,
-metrics and incidents, which a person can acknowledge and resolve. Everything runs with one
-Docker Compose command.
+**Status:** Milestone 6. A simulator generates fake metrics and failure scenarios, the
+backend detects incidents with deterministic rules, and a React dashboard (inspired by
+PagerDuty, Grafana and incident.io) shows services, metrics, incidents and SRE response
+times (MTTA, MTTR). On request, an optional AI assistant (Google Gemini) suggests
+hypotheses, kept apart from facts computed from the data. Everything runs with one Docker
+Compose command, with or without an AI key.
 
 ## Quick start (Docker)
 
@@ -49,6 +51,36 @@ browser ──▶ nginx (dashboard + /api proxy) ──────────�
 - **Detection** (`backend/app/detection.py`) is pure: no database, no I/O, no wall clock.
   The incident manager feeds it samples and persists its decisions in one transaction.
 - The **dashboard** polls the API every 5 s through nginx (same origin, no CORS).
+- The optional **AI assistant** is called by the API only on a user's click, behind a
+  provider interface; nothing else depends on it.
+
+## Optional AI diagnosis (Google Gemini)
+
+- **The core application runs without any key.** Without `GEMINI_API_KEY`, the AI panel
+  says the feature is off and everything else works.
+- **Bring your own key** from [Google AI Studio](https://aistudio.google.com/) and set it
+  in `.env` (`GEMINI_API_KEY=...`, server side only; it never reaches the browser).
+- The Gemini API has a **free tier with quotas** (rate and daily limits shown in AI
+  Studio). Its availability and limits depend on Google's current terms: **nothing here
+  promises it stays free.** On the free tier, Google may use the content sent to improve
+  its products; this project only sends simulated data.
+- The model defaults to `gemini-3.5-flash-lite` (`GEMINI_MODEL` to change it).
+
+How it works:
+
+1. The AI is called **only when a person clicks "Analyze with AI"** on an incident.
+2. The backend computes **observed facts** itself from stored data (duration, peak, metric
+   averages before and during the incident, downtime). They never come from the model.
+3. It sends **only this incident and its own service's metrics** (downsampled) to Gemini,
+   asking for JSON with hypotheses (with a confidence level) and suggested checks.
+4. The answer is validated (Pydantic) and stored; the dashboard shows facts and
+   "AI-generated · not confirmed" hypotheses in separate blocks. It never claims a
+   confirmed root cause.
+5. Quota (429), timeout (504), provider errors (502) and missing key (503) each return a
+   clear message; nothing is stored and the rest of the page keeps working.
+
+The provider sits behind an interface (`app/ai.py`); detection never depends on it, and
+tests use a fake provider or a mocked HTTP transport (no real API call).
 
 ## Simulator
 
@@ -125,6 +157,9 @@ skipped.
 | `LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING` or `ERROR` |
 | `INGEST_TOKEN` | Shared secret for the ingest endpoint, at least 16 characters (required) |
 | `TEST_DATABASE_URL` | Database used by integration tests (name must end with `_test`) |
+| `GEMINI_API_KEY` | Optional. Enables AI diagnosis; empty or absent disables it |
+| `GEMINI_MODEL` | Gemini model (default `gemini-3.5-flash-lite`) |
+| `AI_TIMEOUT_SECONDS` | Timeout of one AI call (default 20) |
 | `SIMULATOR_API_URL` | Where the simulator sends samples (default `http://localhost:8000`) |
 | `SIMULATOR_SCENARIO` | Compose only: scenario of the simulator container (default `demo`) |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT` | PostgreSQL container |
@@ -162,12 +197,16 @@ the latest stored sample: kept but not evaluated) and the incident `decisions` t
 | Method and path | Purpose |
 |---|---|
 | `GET /api/v1/services` | Services with their number of unresolved incidents |
-| `GET /api/v1/services/{id}/metrics?since=&limit=` | Simulated samples, oldest first (default: last 360) |
+| `GET /api/v1/services/{id}/metrics?since=&until=&limit=` | Simulated samples, oldest first (default: last 360) |
 | `GET /api/v1/incidents?status=&service_id=&limit=&offset=` | Incidents, newest first |
 | `GET /api/v1/incidents/{id}` | One incident with its evidence and timeline |
 | `POST /api/v1/incidents/{id}/acknowledge` | `open → acknowledged`, optional `{"note": "..."}` |
 | `POST /api/v1/incidents/{id}/resolve` | `open` or `acknowledged → resolved` (final) |
+| `GET /api/v1/incidents/summary` | Counts by status, MTTA and MTTR |
 | `GET /api/v1/rules` | Detection thresholds (the dashboard draws them on the charts) |
+| `GET /api/v1/ai/status` | Whether AI diagnosis is configured |
+| `GET /api/v1/incidents/{id}/diagnosis` | Latest stored diagnosis (never calls the AI) |
+| `POST /api/v1/incidents/{id}/diagnosis` | Ask the AI provider (explicit request; uses quota) |
 
 An invalid transition (e.g. acknowledging twice, or touching a resolved incident) returns
 **409** and records nothing. Detection keeps updating an acknowledged incident (escalation,
@@ -200,7 +239,8 @@ Thresholds use `>=`.
 ```
 backend/
   app/            FastAPI application: api/ (routes), incident_manager.py (workflows),
-                  detection.py (pure rules), repository.py (SQL), models, schemas
+                  detection.py (pure rules), repository.py (SQL), diagnosis.py and
+                  ai.py (optional AI assistant), models, schemas
   simulator/      Separate process generating simulated metrics (talks HTTP only)
   migrations/     Alembic migrations (written by hand)
   tests/          unit/ (no database) and integration/ (PostgreSQL)

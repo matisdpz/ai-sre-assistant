@@ -1,46 +1,32 @@
-import { lazy, Suspense } from "react";
-import { NavLink, Route, Routes } from "react-router-dom";
+import { lazy, Suspense, type ReactNode } from "react";
+import { Route, Routes } from "react-router-dom";
 
-import { IncidentDetail } from "./pages/IncidentDetail";
+import { Layout } from "./components/Layout";
+import { Incidents } from "./pages/Incidents";
 import { Overview } from "./pages/Overview";
 
-// The charts library is large: load the metrics page only when it is opened.
+// The charts library is large: pages with full charts load it only when opened.
+const IncidentDetail = lazy(() =>
+  import("./pages/IncidentDetail").then((m) => ({ default: m.IncidentDetail })),
+);
 const ServiceMetrics = lazy(() =>
   import("./pages/ServiceMetrics").then((m) => ({ default: m.ServiceMetrics })),
 );
 
-const SERVICES = ["api-gateway", "payment-service", "database-service"];
+const withSuspense = (page: ReactNode) => (
+  <Suspense fallback={<p className="empty">Loading…</p>}>{page}</Suspense>
+);
 
 export function App() {
   return (
-    <>
-      <div className="banner" role="note">
-        Simulated data - no real infrastructure is monitored.
-      </div>
-      <header className="topbar">
-        <NavLink to="/" className="brand">AI SRE Assistant</NavLink>
-        <nav>
-          <NavLink to="/" end>Overview</NavLink>
-          {SERVICES.map((id) => (
-            <NavLink key={id} to={`/services/${id}`}>{id}</NavLink>
-          ))}
-        </nav>
-      </header>
-      <main>
-        <Routes>
-          <Route path="/" element={<Overview />} />
-          <Route path="/incidents/:id" element={<IncidentDetail />} />
-          <Route
-            path="/services/:id"
-            element={
-              <Suspense fallback={<p className="empty">Loading…</p>}>
-                <ServiceMetrics />
-              </Suspense>
-            }
-          />
-          <Route path="*" element={<p className="empty">Page not found.</p>} />
-        </Routes>
-      </main>
-    </>
+    <Layout>
+      <Routes>
+        <Route path="/" element={<Overview />} />
+        <Route path="/incidents" element={<Incidents />} />
+        <Route path="/incidents/:id" element={withSuspense(<IncidentDetail />)} />
+        <Route path="/services/:id" element={withSuspense(<ServiceMetrics />)} />
+        <Route path="*" element={<p className="empty">Page not found.</p>} />
+      </Routes>
+    </Layout>
   );
 }

@@ -96,6 +96,14 @@ class IncidentOut(BaseModel):
     updated_at: datetime
 
 
+class IncidentSummaryOut(BaseModel):
+    open: int
+    acknowledged: int
+    resolved: int
+    mtta_seconds: float | None  # mean time to acknowledge: detection -> first human action
+    mttr_seconds: float | None  # mean time to resolve: detection -> resolution
+
+
 class IncidentEventOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -128,3 +136,37 @@ class RuleOut(BaseModel):
     critical: float
     breach_samples: int
     recovery_samples: int
+
+
+# --- AI diagnosis -----------------------------------------------------------------------
+
+
+class AIStatusOut(BaseModel):
+    enabled: bool
+    provider: str | None
+    model: str | None
+
+
+class HypothesisOut(BaseModel):
+    title: str
+    reasoning: str
+    confidence: Literal["low", "medium", "high"]
+    supporting_facts: list[str]
+
+
+class DiagnosisOut(BaseModel):
+    """`facts` are observed (computed from stored data); the rest is AI-generated."""
+
+    id: uuid.UUID
+    incident_id: uuid.UUID
+    provider: str
+    model: str
+    created_at: datetime
+    facts: list[str]
+    summary: str
+    hypotheses: list[HypothesisOut]
+    suggested_checks: list[str]
+    disclaimer: str = (
+        "AI-generated hypotheses from simulated data. Not a confirmed root cause: "
+        "verify before acting."
+    )

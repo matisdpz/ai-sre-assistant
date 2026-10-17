@@ -181,3 +181,22 @@ class IncidentEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     incident: Mapped[Incident] = relationship(back_populates="events")
+
+
+class IncidentDiagnosis(Base):
+    """An AI-assisted diagnosis, requested explicitly by a user.
+
+    `facts` are computed by the backend from stored data (observed). `result` holds the
+    model's hypotheses and suggested checks (generated, never a confirmed root cause).
+    """
+
+    __tablename__ = "incident_diagnoses"
+    __table_args__ = (Index("ix_incident_diagnoses_incident_created", "incident_id", "created_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    incident_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("incidents.id", ondelete="CASCADE"))
+    provider: Mapped[str] = mapped_column(String(32))
+    model: Mapped[str] = mapped_column(String(64))
+    facts: Mapped[list[str]] = mapped_column(JSONB)
+    result: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

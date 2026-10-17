@@ -64,3 +64,37 @@ export interface Rule {
   breach_samples: number;
   recovery_samples: number;
 }
+
+export interface IncidentSummary {
+  open: number;
+  acknowledged: number;
+  resolved: number;
+  mtta_seconds: number | null;
+  mttr_seconds: number | null;
+}
+
+export interface AIStatus {
+  enabled: boolean;
+  provider: string | null;
+  model: string | null;
+}
+
+export interface Hypothesis {
+  title: string;
+  reasoning: string;
+  confidence: "low" | "medium" | "high";
+  supporting_facts: string[];
+}
+
+export interface Diagnosis {
+  id: string;
+  incident_id: string;
+  provider: string;
+  model: string;
+  created_at: string;
+  facts: string[];
+  summary: string;
+  hypotheses: Hypothesis[];
+  suggested_checks: string[];
+  disclaimer: string;
+}

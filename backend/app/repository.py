@@ -9,7 +9,16 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import Incident, IncidentStatus, IncidentType, MetricSnapshot, Service
+from app.models import (
+    Actor,
+    Incident,
+    IncidentDiagnosis,
+    IncidentEvent,
+    IncidentStatus,
+    IncidentType,
+    MetricSnapshot,
+    Service,
+)
 
 
 def existing_service_ids(session: Session, service_ids: Collection[str]) -> set[str]:
@@ -84,12 +93,18 @@ def get_service(session: Session, service_id: str) -> Service | None:
 
 
 def snapshots_since(
-    session: Session, service_id: str, since: datetime | None, limit: int
+    session: Session,
+    service_id: str,
+    since: datetime | None,
+    limit: int,
+    until: datetime | None = None,
 ) -> list[MetricSnapshot]:
-    """The latest `limit` snapshots of a service (after `since` if given), oldest first."""
+    """The latest `limit` snapshots of a service in (since, until], oldest first."""
     query = select(MetricSnapshot).where(MetricSnapshot.service_id == service_id)
     if since is not None:
         query = query.where(MetricSnapshot.ts > since)
+    if until is not None:
+        query = query.where(MetricSnapshot.ts <= until)
     newest_first = session.scalars(query.order_by(MetricSnapshot.ts.desc()).limit(limit)).all()
     return list(reversed(newest_first))
 
@@ -122,3 +137,63 @@ def get_incident(
     if for_update:
         query = query.with_for_update(of=Incident)
     return session.scalar(query)
+
+
+def snapshots_between(
+    session: Session, service_id: str, start: datetime, end: datetime, limit: int = 1000
+) -> list[MetricSnapshot]:
+    """Snapshots of a service with start <= ts <= end, oldest first."""
+    return list(
+        session.scalars(
+            select(MetricSnapshot)
+            .where(
+                MetricSnapshot.service_id == service_id,
+                MetricSnapshot.ts >= start,
+                MetricSnapshot.ts <= end,
+            )
+            .order_by(MetricSnapshot.ts)
+            .limit(limit)
+        )
+    )
+
+
+def latest_diagnosis(session: Session, incident_id: uuid.UUID) -> IncidentDiagnosis | None:
+    return session.scalar(
+        select(IncidentDiagnosis)
+        .where(IncidentDiagnosis.incident_id == incident_id)
+        .order_by(IncidentDiagnosis.created_at.desc())
+        .limit(1)
+    )
+
+
+def incident_summary(session: Session) -> dict[str, Any]:
+    """Counts by status, plus MTTA and MTTR in seconds (None when there is no data yet).
+
+    MTTA: detection -> first human status change. MTTR: detection -> resolution.
+    """
+    counts = dict(
+        session.execute(select(Incident.status, func.count()).group_by(Incident.status)).all()
+    )
+    first_human_action = (
+        select(IncidentEvent.incident_id, func.min(IncidentEvent.created_at).label("at"))
+        .where(IncidentEvent.actor == Actor.USER)
+        .group_by(IncidentEvent.incident_id)
+        .subquery()
+    )
+    mtta = session.scalar(
+        select(
+            func.avg(func.extract("epoch", first_human_action.c.at - Incident.detected_at))
+        ).join(first_human_action, first_human_action.c.incident_id == Incident.id)
+    )
+    mttr = session.scalar(
+        select(func.avg(func.extract("epoch", Incident.resolved_at - Incident.detected_at))).where(
+            Incident.resolved_at.is_not(None)
+        )
+    )
+    return {
+        "open": counts.get(IncidentStatus.OPEN, 0),
+        "acknowledged": counts.get(IncidentStatus.ACKNOWLEDGED, 0),
+        "resolved": counts.get(IncidentStatus.RESOLVED, 0),
+        "mtta_seconds": float(mtta) if mtta is not None else None,
+        "mttr_seconds": float(mttr) if mttr is not None else None,
+    }

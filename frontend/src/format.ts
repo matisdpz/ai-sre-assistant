@@ -21,6 +21,17 @@ export function formatDateTime(iso: string): string {
   });
 }
 
+/** Compact duration: "45s", "4m 12s", "2h 05m", "3d 4h". */
+export function formatDuration(totalSeconds: number): string {
+  const s = Math.max(0, Math.round(totalSeconds));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${String(s % 60).padStart(2, "0")}s`;
+  const h = Math.floor(m / 60);
+  if (h < 48) return `${h}h ${String(m % 60).padStart(2, "0")}m`;
+  return `${Math.floor(h / 24)}d ${h % 24}h`;
+}
+
 /** "3 min ago" style, relative to `now` (passed in for tests). */
 export function formatAgo(iso: string, now: number = Date.now()): string {
   const seconds = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000));
@@ -30,4 +41,9 @@ export function formatAgo(iso: string, now: number = Date.now()): string {
   const hours = Math.round(minutes / 60);
   if (hours < 48) return `${hours} h ago`;
   return `${Math.round(hours / 24)} d ago`;
+}
+
+export function secondsBetween(fromIso: string, toIso: string | null, now = Date.now()): number {
+  const end = toIso ? new Date(toIso).getTime() : now;
+  return (end - new Date(fromIso).getTime()) / 1000;
 }

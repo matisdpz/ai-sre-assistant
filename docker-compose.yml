@@ -46,6 +46,9 @@ services:
       INGEST_TOKEN: ${INGEST_TOKEN:?set INGEST_TOKEN in .env}
       APP_ENV: production
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Optional: empty disables AI diagnosis.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:

@@ -76,6 +76,10 @@ def test_metrics_are_returned_oldest_first_and_labelled_simulated(
     since = (T0 + timedelta(seconds=20)).isoformat()
     assert [p["error_rate"] for p in db_client.get(url, params={"since": since}).json()] == [3, 4]
 
+    until = (T0 + timedelta(seconds=20)).isoformat()
+    window = db_client.get(url, params={"until": until, "limit": 2}).json()
+    assert [p["error_rate"] for p in window] == [1, 2]  # latest two up to `until`
+
 
 def test_metrics_of_unknown_service_is_404(db_client: TestClient) -> None:
     assert db_client.get("/api/v1/services/ghost/metrics").status_code == 404
@@ -208,3 +212,25 @@ def test_recurrence_after_resolution_opens_a_new_incident(db_client: TestClient)
 
     assert second != first
     assert db_client.get(f"/api/v1/incidents/{first}").json()["status"] == "resolved"
+
+
+def test_summary_counts_statuses_and_response_times(db_client: TestClient) -> None:
+    empty = db_client.get("/api/v1/incidents/summary").json()
+    assert empty == {
+        "open": 0,
+        "acknowledged": 0,
+        "resolved": 0,
+        "mtta_seconds": None,
+        "mttr_seconds": None,
+    }
+
+    first = open_incident(db_client, start=0)
+    open_incident(db_client, start=10, service="api-gateway")
+    db_client.post(f"/api/v1/incidents/{first}/acknowledge")
+    db_client.post(f"/api/v1/incidents/{first}/resolve")
+
+    summary = db_client.get("/api/v1/incidents/summary").json()
+    assert (summary["open"], summary["acknowledged"], summary["resolved"]) == (1, 0, 1)
+    # Sample timestamps are in 2026-01-01 and the actions happen now: both are positive.
+    assert summary["mtta_seconds"] > 0
+    assert summary["mttr_seconds"] >= summary["mtta_seconds"]
