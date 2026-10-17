@@ -1,5 +1,7 @@
 # AI SRE Assistant
 
+[![CI](https://github.com/matisdpz/ai-sre-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/matisdpz/ai-sre-assistant/actions/workflows/ci.yml)
+
 Simulates a small distributed system, monitors its metrics, detects incidents with
 deterministic rules and helps an engineer investigate them.
 
@@ -164,6 +166,10 @@ cd frontend
 npm test                                 # vitest
 npm run typecheck
 ```
+
+GitHub Actions runs all of these on every push (`.github/workflows/ci.yml`): backend lint,
+migration drift check and tests against a PostgreSQL 17 service, frontend type check, tests
+and build, and both Docker image builds.
 
 Integration tests use `TEST_DATABASE_URL`. They drop and recreate the schema, so they
 refuse to run unless the database name ends with `_test`. Without that variable they are
