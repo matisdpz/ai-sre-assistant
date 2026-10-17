@@ -5,7 +5,9 @@ deterministic rules and helps an engineer investigate them.
 
 > All telemetry is **simulated**. Nothing here monitors real infrastructure.
 
-**Status:** Milestone 1. Backend skeleton, database schema and health checks are in place.
+**Status:** Milestone 2. Backend skeleton, database schema, health checks and the
+deterministic detection engine (`backend/app/detection.py`) are in place. Detection is not
+yet wired to an ingest endpoint.
 
 ## Requirements
 
@@ -55,6 +57,26 @@ skipped.
 
 Environment variables override values from `.env`. Logs are JSON lines on stdout and
 never include the database password.
+
+## Detection rules
+
+Pure functions in `backend/app/detection.py`: no database, no I/O, no wall clock (time comes
+from sample timestamps). Thresholds use `>=`.
+
+| Rule | Warning | Critical | Opens after N samples | Recovers after M samples |
+|---|---|---|---|---|
+| `high_error_rate` | 5 % | 10 % | 3 | 3 |
+| `high_latency` (p95) | 500 ms | 1000 ms | 3 | 3 |
+| `high_cpu` | 85 % | 95 % | 5 | 3 |
+| `service_down` | - | `up = false` | 2 | 2 |
+
+- Severity is the level held by **all** of the last N samples, so a single spike does not
+  open a critical incident. A warning escalates to critical after N critical samples, and
+  never downgrades.
+- Recovery needs M consecutive healthy samples (below the warning threshold) and only sets
+  `recovered_at`; a person resolves the incident. A new breach before resolution
+  retriggers the same incident.
+- Metric rules ignore samples from a down service (`service_down` covers that case).
 
 ## Project layout
 
