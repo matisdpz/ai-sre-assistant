@@ -9,7 +9,9 @@ UNREACHABLE_DB = "postgresql+psycopg://user:topsecret@127.0.0.1:1/missing"
 
 
 def _client() -> TestClient:
-    return TestClient(create_app(Settings(_env_file=None, database_url=UNREACHABLE_DB)))
+    return TestClient(
+        create_app(Settings(_env_file=None, database_url=UNREACHABLE_DB, ingest_token="x" * 16))
+    )
 
 
 def test_live_is_ok_even_when_database_is_down() -> None:

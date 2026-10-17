@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import health
+from app.api import health, ingest
 from app.config import Settings, get_settings
 from app.db import create_db_engine, create_session_factory
 from app.logging_config import configure_logging
@@ -38,5 +38,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             logger.info("shutdown")
 
     app = FastAPI(title="AI SRE Assistant", version="0.1.0", lifespan=lifespan)
+    app.state.settings = settings
     app.include_router(health.router)
+    app.include_router(ingest.router)
     return app

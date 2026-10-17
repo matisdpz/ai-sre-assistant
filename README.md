@@ -5,9 +5,9 @@ deterministic rules and helps an engineer investigate them.
 
 > All telemetry is **simulated**. Nothing here monitors real infrastructure.
 
-**Status:** Milestone 2. Backend skeleton, database schema, health checks and the
-deterministic detection engine (`backend/app/detection.py`) are in place. Detection is not
-yet wired to an ingest endpoint.
+**Status:** Milestone 3. Simulated metrics are ingested over HTTP, stored in PostgreSQL and
+run through the deterministic detection engine, which opens, escalates and recovers
+incidents. The incidents API and dashboard come next.
 
 ## Requirements
 
@@ -31,6 +31,29 @@ python3 -m venv .venv
 - Readiness: <http://localhost:8000/health/ready> (the database answers; 503 otherwise)
 - API docs: <http://localhost:8000/docs>
 
+## Ingesting metrics
+
+`POST /api/v1/ingest/metrics` takes a batch of simulated samples (1 to 500). It requires
+`Authorization: Bearer $INGEST_TOKEN`.
+
+```bash
+curl -X POST localhost:8000/api/v1/ingest/metrics \
+  -H "Authorization: Bearer $INGEST_TOKEN" -H "Content-Type: application/json" \
+  -d '{"samples": [{"service_id": "payment-service", "ts": "2026-01-01T12:00:00Z",
+       "request_rate": 120, "error_rate": 7.5, "latency_p95_ms": 180,
+       "cpu_pct": 40, "mem_pct": 55, "up": true}]}'
+```
+
+Response: `stored`, `duplicates` (same service and timestamp, ignored), `late` (older than
+the latest stored sample: kept but not evaluated) and the incident `decisions` taken.
+
+- One request is one transaction: the samples and their incidents are saved together or
+  not at all.
+- Requests for the same service are serialized by a row lock on the service, so two
+  concurrent requests cannot open the same incident twice. The partial unique index
+  `uq_incidents_active_service_type` is the last line of defence.
+- Known services: `api-gateway`, `payment-service`, `database-service`. Unknown → 422.
+
 ## Checks
 
 Run from `backend/`:
@@ -52,6 +75,7 @@ skipped.
 | `DATABASE_URL` | `postgresql+psycopg://…` connection string (required) |
 | `APP_ENV` | `development`, `test` or `production` |
 | `LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING` or `ERROR` |
+| `INGEST_TOKEN` | Shared secret for the ingest endpoint, at least 16 characters (required) |
 | `TEST_DATABASE_URL` | Database used by integration tests (name must end with `_test`) |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT` | PostgreSQL container |
 
@@ -82,7 +106,8 @@ from sample timestamps). Thresholds use `>=`.
 
 ```
 backend/
-  app/            FastAPI application (config, logging, db, models, api/)
+  app/            FastAPI application: api/ (routes), incident_manager.py (ingest
+                  workflow), detection.py (pure rules), repository.py (SQL), models
   migrations/     Alembic migrations
   tests/          unit/ (no database) and integration/ (PostgreSQL)
 docker/           PostgreSQL init script (creates sre_test)

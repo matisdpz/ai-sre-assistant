@@ -6,13 +6,14 @@ from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from sqlalchemy import Engine, create_engine, make_url
+from sqlalchemy import Engine, create_engine, make_url, text
 from sqlalchemy.orm import Session
 
 from app.config import ROOT_ENV_FILE, Settings
 from app.main import create_app
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
+TEST_INGEST_TOKEN = "test-ingest-token-0123456789"
 
 
 class _TestEnv(BaseSettings):
@@ -63,7 +64,22 @@ def db_session(migrated_engine: Engine) -> Iterator[Session]:
 
 
 @pytest.fixture
-def db_client(test_database_url: str, migrated_engine: Engine) -> Iterator[TestClient]:
-    app = create_app(Settings(database_url=test_database_url, app_env="test"))
+def clean_db(migrated_engine: Engine) -> Iterator[Engine]:
+    """For tests that really commit (API, concurrency): empty the data tables afterwards.
+    The seeded services are kept."""
+    yield migrated_engine
+    with migrated_engine.begin() as connection:
+        connection.execute(text("TRUNCATE incident_events, incidents, metric_snapshots"))
+
+
+@pytest.fixture
+def db_client(test_database_url: str, clean_db: Engine) -> Iterator[TestClient]:
+    settings = Settings(
+        _env_file=None,
+        database_url=test_database_url,
+        ingest_token=TEST_INGEST_TOKEN,
+        app_env="test",
+    )
+    app = create_app(settings)
     with TestClient(app) as client:
         yield client

@@ -17,12 +17,21 @@ class Settings(BaseSettings):
     database_url: SecretStr
     app_env: Literal["development", "test", "production"] = "development"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    # Shared secret the simulator sends as "Authorization: Bearer <token>".
+    ingest_token: SecretStr
 
     @field_validator("database_url")
     @classmethod
     def require_postgres_psycopg(cls, value: SecretStr) -> SecretStr:
         if not value.get_secret_value().startswith("postgresql+psycopg://"):
             raise ValueError("DATABASE_URL must start with postgresql+psycopg://")
+        return value
+
+    @field_validator("ingest_token")
+    @classmethod
+    def require_long_token(cls, value: SecretStr) -> SecretStr:
+        if len(value.get_secret_value()) < 16:
+            raise ValueError("INGEST_TOKEN must be at least 16 characters")
         return value
 
 
