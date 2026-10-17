@@ -5,7 +5,7 @@ deterministic rules and helps an engineer investigate them.
 
 > All telemetry is **simulated**. Nothing here monitors real infrastructure.
 
-**Status:** Milestone 6. A simulator generates fake metrics and failure scenarios, the
+**Status:** feature complete. A simulator generates fake metrics and failure scenarios, the
 backend detects incidents with deterministic rules, and a React dashboard (inspired by
 PagerDuty, Grafana and incident.io) shows services, metrics, incidents and SRE response
 times (MTTA, MTTR). On request, an optional AI assistant (Google Gemini) suggests

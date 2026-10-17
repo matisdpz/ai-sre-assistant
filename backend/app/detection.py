@@ -2,7 +2,7 @@
 
 Everything here is pure: no database, no I/O and no wall clock. Time comes only from
 sample timestamps, so the same samples always produce the same decisions. The incident
-manager (Milestone 3) feeds recent samples and the current incident state in, and
+manager (`app/incident_manager.py`) feeds recent samples and the current incident state in, and
 persists the returned decisions.
 
 All telemetry in this project is simulated.

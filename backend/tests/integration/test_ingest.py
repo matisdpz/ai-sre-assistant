@@ -167,7 +167,7 @@ def test_full_lifecycle_escalate_recover_retrigger(db_session: Session) -> None:
 def test_breach_after_resolution_opens_a_new_incident(db_session: Session) -> None:
     feed(db_session, error_ticks(0, 6, 7, 8))
     [first] = incidents(db_session)
-    first.status = IncidentStatus.RESOLVED  # what the incidents API will do (Milestone 4)
+    first.status = IncidentStatus.RESOLVED  # as the resolve endpoint does
     db_session.commit()
 
     assert feed(db_session, error_ticks(3, 6, 7, 8)) == [EventKind.DETECTED]
