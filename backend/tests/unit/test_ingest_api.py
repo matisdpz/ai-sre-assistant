@@ -10,8 +10,9 @@ from pydantic import ValidationError
 
 from app.config import Settings
 from app.detection import RULES
-from app.incident_manager import DETECTION_WINDOW
+from app.incident_manager import ALLOWED_TRANSITIONS, DETECTION_WINDOW
 from app.main import create_app
+from app.models import IncidentStatus as S
 from app.schemas import MAX_BATCH_SAMPLES, MetricBatchIn, MetricSampleIn
 
 TOKEN = "unit-test-ingest-token"
@@ -89,3 +90,12 @@ def test_batch_size_is_limited() -> None:
 
 def test_detection_window_covers_every_rule() -> None:
     assert all(max(r.breach_samples, r.recovery_samples) <= DETECTION_WINDOW for r in RULES)
+
+
+def test_status_lifecycle_matches_specification() -> None:
+    allowed = {(a, b) for a, targets in ALLOWED_TRANSITIONS.items() for b in targets}
+    assert allowed == {(S.OPEN, S.ACKNOWLEDGED), (S.OPEN, S.RESOLVED), (S.ACKNOWLEDGED, S.RESOLVED)}
+
+
+def test_malformed_incident_id_is_422(client: TestClient) -> None:
+    assert client.get("/api/v1/incidents/not-a-uuid").status_code == 422

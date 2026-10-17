@@ -1,9 +1,10 @@
 import uuid
-from typing import Literal
+from datetime import datetime
+from typing import Any, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
-from app.models import EventKind, IncidentType, Severity
+from app.models import Actor, EventKind, IncidentStatus, IncidentType, Severity
 
 MAX_BATCH_SAMPLES = 500
 
@@ -52,3 +53,67 @@ class IngestResponse(BaseModel):
     duplicates: int  # already stored (same service and timestamp), ignored
     late: int  # stored, but older than the latest sample: not evaluated
     decisions: list[IncidentDecisionOut]
+
+
+# --- read API ---------------------------------------------------------------------------
+
+
+class ServiceOut(BaseModel):
+    id: str
+    name: str
+    description: str
+    active_incidents: int  # unresolved
+
+
+class MetricPointOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    ts: datetime
+    request_rate: float
+    error_rate: float
+    latency_p95_ms: float
+    cpu_pct: float
+    mem_pct: float
+    up: bool
+    source: str  # always "simulated" in this project
+
+
+class IncidentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    service_id: str
+    type: IncidentType
+    severity: Severity
+    status: IncidentStatus
+    summary: str
+    threshold: float
+    peak_value: float
+    started_at: datetime
+    detected_at: datetime
+    recovered_at: datetime | None
+    resolved_at: datetime | None
+    updated_at: datetime
+
+
+class IncidentEventOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    kind: EventKind
+    actor: Actor
+    from_status: IncidentStatus | None
+    to_status: IncidentStatus | None
+    note: str | None
+    created_at: datetime
+
+
+class IncidentDetailOut(IncidentOut):
+    evidence: list[dict[str, Any]]  # the samples behind the latest decision
+    events: list[IncidentEventOut]  # timeline, oldest first
+
+
+class StatusChangeIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    note: str | None = Field(default=None, max_length=2000)

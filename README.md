@@ -5,9 +5,9 @@ deterministic rules and helps an engineer investigate them.
 
 > All telemetry is **simulated**. Nothing here monitors real infrastructure.
 
-**Status:** Milestone 3. Simulated metrics are ingested over HTTP, stored in PostgreSQL and
-run through the deterministic detection engine, which opens, escalates and recovers
-incidents. The incidents API and dashboard come next.
+**Status:** Milestone 4. Simulated metrics are ingested over HTTP and run through the
+deterministic detection engine; an HTTP API lists services, metrics and incidents, and lets
+a person acknowledge and resolve incidents. The simulator and dashboard come next.
 
 ## Requirements
 
@@ -81,6 +81,23 @@ skipped.
 
 Environment variables override values from `.env`. Logs are JSON lines on stdout and
 never include the database password.
+
+## Incidents API
+
+| Method and path | Purpose |
+|---|---|
+| `GET /api/v1/services` | Services with their number of unresolved incidents |
+| `GET /api/v1/services/{id}/metrics?since=&limit=` | Simulated samples, oldest first (default: last 360) |
+| `GET /api/v1/incidents?status=&service_id=&limit=&offset=` | Incidents, newest first |
+| `GET /api/v1/incidents/{id}` | One incident with its evidence and timeline |
+| `POST /api/v1/incidents/{id}/acknowledge` | `open → acknowledged`, optional `{"note": "..."}` |
+| `POST /api/v1/incidents/{id}/resolve` | `open` or `acknowledged → resolved` (final) |
+
+An invalid transition (e.g. acknowledging twice, or touching a resolved incident) returns
+**409** and records nothing. Detection keeps updating an acknowledged incident (escalation,
+recovery); only resolution closes it, and a recurrence opens a new incident.
+
+The read and status endpoints have no authentication yet: the project runs locally.
 
 ## Detection rules
 

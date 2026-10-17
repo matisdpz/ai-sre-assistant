@@ -155,7 +155,8 @@ class Incident(Base):
 
     events: Mapped[list["IncidentEvent"]] = relationship(
         back_populates="incident",
-        order_by="IncidentEvent.created_at",
+        # Insertion order: events written in one transaction share the same created_at.
+        order_by="IncidentEvent.id",
         cascade="all, delete-orphan",
     )
 

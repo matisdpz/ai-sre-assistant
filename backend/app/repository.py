@@ -1,12 +1,13 @@
 """Database queries. The only module that builds SQL; callers own the transaction."""
 
+import uuid
 from collections.abc import Collection, Sequence
 from datetime import datetime
 from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models import Incident, IncidentStatus, IncidentType, MetricSnapshot, Service
 
@@ -64,3 +65,60 @@ def active_incidents(session: Session, service_id: str) -> dict[IncidentType, In
         )
     )
     return {incident.type: incident for incident in incidents}
+
+
+def list_services(session: Session) -> list[tuple[Service, int]]:
+    """Every service with its number of unresolved incidents."""
+    active = (
+        select(func.count(Incident.id))
+        .where(Incident.service_id == Service.id, Incident.status != IncidentStatus.RESOLVED)
+        .scalar_subquery()
+    )
+    return [
+        (row[0], row[1]) for row in session.execute(select(Service, active).order_by(Service.id))
+    ]
+
+
+def get_service(session: Session, service_id: str) -> Service | None:
+    return session.get(Service, service_id)
+
+
+def snapshots_since(
+    session: Session, service_id: str, since: datetime | None, limit: int
+) -> list[MetricSnapshot]:
+    """The latest `limit` snapshots of a service (after `since` if given), oldest first."""
+    query = select(MetricSnapshot).where(MetricSnapshot.service_id == service_id)
+    if since is not None:
+        query = query.where(MetricSnapshot.ts > since)
+    newest_first = session.scalars(query.order_by(MetricSnapshot.ts.desc()).limit(limit)).all()
+    return list(reversed(newest_first))
+
+
+def list_incidents(
+    session: Session,
+    *,
+    status: IncidentStatus | None,
+    service_id: str | None,
+    limit: int,
+    offset: int,
+) -> list[Incident]:
+    """Newest first."""
+    query = select(Incident)
+    if status is not None:
+        query = query.where(Incident.status == status)
+    if service_id is not None:
+        query = query.where(Incident.service_id == service_id)
+    query = query.order_by(Incident.detected_at.desc(), Incident.id).limit(limit).offset(offset)
+    return list(session.scalars(query))
+
+
+def get_incident(
+    session: Session, incident_id: uuid.UUID, *, for_update: bool = False
+) -> Incident | None:
+    """An incident with its timeline loaded."""
+    query = (
+        select(Incident).where(Incident.id == incident_id).options(selectinload(Incident.events))
+    )
+    if for_update:
+        query = query.with_for_update(of=Incident)
+    return session.scalar(query)
