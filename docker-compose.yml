@@ -1,4 +1,14 @@
-# Milestone 1: database only. API, simulator and frontend are added in Milestone 5.
+# Full stack: database, one-shot migration job, API, simulator and dashboard.
+# All telemetry is simulated.
+
+# One backend image, built once, used by three services with different commands.
+x-backend: &backend
+  build: ./backend
+  image: ai-sre-assistant-backend:local
+
+x-database-url: &database-url
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+
 services:
   db:
     image: postgres:17-alpine
@@ -17,6 +27,60 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # Runs once, before the API. A separate job (rather than migrating at API startup)
+  # means several API replicas never race to migrate the same database.
+  migrate:
+    <<: *backend
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      <<: *database-url
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    <<: *backend
+    environment:
+      <<: *database-url
+      INGEST_TOKEN: ${INGEST_TOKEN:?set INGEST_TOKEN in .env}
+      APP_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  simulator:
+    <<: *backend
+    command: ["python", "-m", "simulator", "--scenario", "${SIMULATOR_SCENARIO:-demo}"]
+    environment:
+      INGEST_TOKEN: ${INGEST_TOKEN:?set INGEST_TOKEN in .env}
+      SIMULATOR_API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   pgdata:

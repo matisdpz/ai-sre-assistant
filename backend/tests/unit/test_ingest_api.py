@@ -99,3 +99,19 @@ def test_status_lifecycle_matches_specification() -> None:
 
 def test_malformed_incident_id_is_422(client: TestClient) -> None:
     assert client.get("/api/v1/incidents/not-a-uuid").status_code == 422
+
+
+def test_rules_endpoint_exposes_the_engine_thresholds(client: TestClient) -> None:
+    rules = {r["type"]: r for r in client.get("/api/v1/rules").json()}
+    assert set(rules) == {r.incident_type.value for r in RULES}
+    assert rules["high_error_rate"] == {
+        "type": "high_error_rate",
+        "label": "error rate",
+        "metric": "error_rate",
+        "unit": "%",
+        "warning": 5.0,
+        "critical": 10.0,
+        "breach_samples": 3,
+        "recovery_samples": 3,
+    }
+    assert rules["service_down"]["warning"] is None

@@ -1,3 +1,4 @@
+import os
 from logging.config import fileConfig
 
 from alembic import context
@@ -15,8 +16,9 @@ target_metadata = Base.metadata
 
 
 def database_url() -> str:
-    # Tests pass TEST_DATABASE_URL explicitly; otherwise use the application settings.
-    url = config.get_main_option("sqlalchemy.url")
+    # Tests pass TEST_DATABASE_URL explicitly. The migration container only gets
+    # DATABASE_URL (no other secret). Locally, fall back to the application settings.
+    url = config.get_main_option("sqlalchemy.url") or os.environ.get("DATABASE_URL")
     if url:
         return url
     from app.config import get_settings

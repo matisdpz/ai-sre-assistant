@@ -117,3 +117,14 @@ class StatusChangeIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     note: str | None = Field(default=None, max_length=2000)
+
+
+class RuleOut(BaseModel):
+    type: IncidentType
+    label: str
+    metric: str
+    unit: str
+    warning: float | None
+    critical: float
+    breach_samples: int
+    recovery_samples: int
