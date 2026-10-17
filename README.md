@@ -12,6 +12,27 @@ times (MTTA, MTTR). On request, an optional AI assistant (Google Gemini) suggest
 hypotheses, kept apart from facts computed from the data. Everything runs with one Docker
 Compose command, with or without an AI key.
 
+## Screenshots
+
+**Overview:** KPIs (active incidents, MTTA, MTTR), service health with sparklines, and the
+active incidents queue with one-click acknowledge and resolve.
+
+![Overview](docs/screenshots/overview.png)
+
+**Incident with AI diagnosis:** the triggering metric around the incident, observed facts
+computed by the backend, AI-generated hypotheses (labelled as not confirmed) and the
+timeline.
+
+![Incident detail with AI diagnosis](docs/screenshots/incident-ai-diagnosis.png)
+
+**Service metrics:** one chart per metric with detection thresholds and incident markers.
+
+![Service metrics](docs/screenshots/service-metrics.png)
+
+**Incident queue:** status tabs with counts, search and service filter.
+
+![Incidents](docs/screenshots/incidents.png)
+
 ## Quick start (Docker)
 
 Requirements: Docker with Docker Compose.
