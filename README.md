@@ -8,16 +8,17 @@ deterministic rules and helps an engineer investigate them.
 > All telemetry is **simulated**. Nothing here monitors real infrastructure.
 
 **Status:** feature complete. A simulator generates fake metrics and failure scenarios, the
-backend detects incidents with deterministic rules, and a React dashboard (inspired by
-PagerDuty, Grafana and incident.io) shows services, metrics, incidents and SRE response
-times (MTTA, MTTR). On request, an optional AI assistant (Google Gemini) suggests
+backend detects incidents with deterministic rules, and a React dashboard shows them as a
+cockpit-style panel of lamps, with metrics, incidents and SRE response times (MTTA, MTTR). On request, an optional AI assistant (Google Gemini) suggests
 hypotheses, kept apart from facts computed from the data. Everything runs with one Docker
 Compose command, with or without an AI key.
 
 ## Screenshots
 
-**Overview:** KPIs (active incidents, MTTA, MTTR), service health with sparklines, and the
-active incidents queue with one-click acknowledge and resolve.
+**Overview:** one lamp per detection rule and service, lit while an incident is unresolved
+(filled until someone acknowledges it), with the current value and a 15-minute trend in
+each lamp. Below: MTTA, MTTR and the active incidents queue with one-click acknowledge and
+resolve.
 
 ![Overview](docs/screenshots/overview.png)
 
@@ -35,6 +36,23 @@ timeline.
 
 ![Incidents](docs/screenshots/incidents.png)
 
+## Dashboard design
+
+The interface borrows from aircraft cockpits, where crews read the state of many systems at
+a glance under pressure, the same problem an on-call engineer has.
+
+- **Annunciator panel:** cockpits group alarms in a grid of named lamps that stay dark
+  while everything is normal. Here the grid is detection rules x services, so the overview
+  shows exactly what the detection engine is watching and which rule fired where.
+- **One meaning per color**, after the Airbus ECAM convention: red critical, amber warning,
+  green normal, cyan for things you can act on, and magenta for computed rather than
+  measured values, which is why AI hypotheses are magenta and observed facts are not.
+- **B612**, the typeface Airbus designed for cockpit displays, served locally
+  (`@fontsource/b612`, no external font request).
+- Light and dark themes follow the OS setting. Color is never the only signal: every lamp
+  and badge also carries a text label. The page-load lamp test is the only automatic
+  animation and is skipped when the OS asks for reduced motion.
+
 ## Quick start (Docker)
 
 Requirements: Docker with Docker Compose.
@@ -43,6 +61,9 @@ Requirements: Docker with Docker Compose.
 cp .env.example .env     # then replace every "change-me" value (INGEST_TOKEN: 16+ chars)
 docker compose up -d --build
 ```
+
+If port 5432 is already used on your machine, set `POSTGRES_PORT` (for example `5433`) in
+`.env`: only the host port changes, the containers still talk to each other on 5432.
 
 - Dashboard: <http://localhost:8080>
 - API docs: <http://localhost:8000/docs>

@@ -20,10 +20,10 @@ export function LiveIndicator({ updatedAt }: { updatedAt: number | null }) {
       onClick={() => setPaused(!paused)}
       title={paused ? "Resume auto-refresh" : "Pause auto-refresh"}
     >
-      {paused ? <PlayIcon /> : <span className="live-dot" aria-hidden="true" />}
+      <span className="live-lamp" aria-hidden="true" />
       {paused ? "Paused" : "Live"}
-      {age !== null && <span className="muted">· {age}s ago</span>}
-      {!paused && <PauseIcon />}
+      {age !== null && <span className="muted">{age}s ago</span>}
+      {paused ? <PlayIcon /> : <PauseIcon />}
     </button>
   );
 }

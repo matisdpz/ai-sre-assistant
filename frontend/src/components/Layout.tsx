@@ -2,11 +2,10 @@ import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 
 import { api } from "../api";
-import { AlertIcon, GridIcon, ServerIcon, SparkIcon } from "../icons";
 import { usePolling } from "../usePolling";
 import { HealthDot } from "./Badges";
 
-async function loadSidebar(signal: AbortSignal) {
+async function loadNav(signal: AbortSignal) {
   const [services, summary, ai] = await Promise.all([
     api.services(signal),
     api.summary(signal),
@@ -15,44 +14,54 @@ async function loadSidebar(signal: AbortSignal) {
   return { services, summary, ai };
 }
 
-/** Left navigation, as in Grafana, Datadog or incident.io; collapses to a top bar on phones. */
+/**
+ * Top bar: navigation, one health lamp per service, AI state and the simulated-data notice.
+ * The incident count lights up while some incident is still unacknowledged.
+ */
 export function Layout({ children }: { children: ReactNode }) {
-  const { data } = usePolling(loadSidebar, 10000);
+  const { data } = usePolling(loadNav, 10000);
   const active = data ? data.summary.open + data.summary.acknowledged : 0;
+  const unacknowledged = data?.summary.open ?? 0;
 
   return (
     <div className="shell">
-      <aside className="sidebar">
+      <header className="topbar">
         <NavLink to="/" className="brand">
-          <span className="brand-mark" aria-hidden="true">◆</span> SRE Assistant
+          <span className="brand-mark" aria-hidden="true" />
+          SRE Assistant
         </NavLink>
-        <nav aria-label="Main">
+        <nav className="topnav" aria-label="Main">
           <NavLink to="/" end className="nav-item">
-            <GridIcon /> Overview
+            Overview
           </NavLink>
           <NavLink to="/incidents" className="nav-item">
-            <AlertIcon /> Incidents
-            {active > 0 && <span className="count">{active}</span>}
+            Incidents
+            {active > 0 && (
+              <span
+                className={`count ${unacknowledged > 0 ? "lit" : ""}`}
+                title={`${unacknowledged} not acknowledged`}
+              >
+                {active}
+              </span>
+            )}
           </NavLink>
-          <div className="nav-section">
-            <ServerIcon /> Services
-          </div>
+        </nav>
+        <nav className="service-nav" aria-label="Services">
           {(data?.services ?? []).map((service) => (
-            <NavLink key={service.id} to={`/services/${service.id}`} className="nav-item sub">
+            <NavLink key={service.id} to={`/services/${service.id}`} className="nav-item service-item">
               <HealthDot activeIncidents={service.active_incidents} /> {service.id}
             </NavLink>
           ))}
         </nav>
-        <div className="sidebar-footer">
-          <div className="ai-state" title={data?.ai.model ?? undefined}>
-            <SparkIcon />
+        <div className="topbar-end">
+          <span className={`ai-state ${data?.ai.enabled ? "on" : ""}`} title={data?.ai.model ?? undefined}>
             {data?.ai.enabled ? "AI assistant on" : "AI assistant off"}
-          </div>
-          <div className="simulated-tag" role="note">
+          </span>
+          <span className="simulated-tag" role="note">
             Simulated data: no real infrastructure is monitored
-          </div>
+          </span>
         </div>
-      </aside>
+      </header>
       <main className="content">{children}</main>
     </div>
   );

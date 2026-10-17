@@ -15,6 +15,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fontsource/b612": "5.3.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-is": "19.3.0",

@@ -133,6 +133,7 @@ export function IncidentDetail() {
               points={points}
               value={value}
               threshold={rule && metric !== "up" ? { warning: rule.warning, critical: rule.critical } : undefined}
+              domainMax={incident.type === "high_cpu" ? 100 : undefined}
               highlight={{ from: incident.started_at, to: incident.recovered_at ?? incident.resolved_at }}
               markers={[{ ts: incident.detected_at, label: "detected" }]}
               height={240}

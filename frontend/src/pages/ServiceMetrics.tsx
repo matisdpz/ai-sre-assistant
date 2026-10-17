@@ -20,7 +20,7 @@ function thresholdOf(rules: Rule[], type: IncidentType): Threshold | undefined {
   return rule ? { warning: rule.warning, critical: rule.critical } : undefined;
 }
 
-/** A Grafana-like service dashboard: range picker, one chart per metric, incident markers. */
+/** Service dashboard: range picker, one chart per metric, incident markers. */
 export function ServiceMetrics() {
   const { id = "" } = useParams();
   const [params, setParams] = useSearchParams();
@@ -110,7 +110,7 @@ export function ServiceMetrics() {
         <section className="card">
           <div className="card-header">
             <h2>Recent incidents</h2>
-            <Link to={`/incidents?status=all&service=${id}`}>View all →</Link>
+            <Link to={`/incidents?status=all&service=${id}`}>All incidents on this service</Link>
           </div>
           <IncidentList incidents={data.incidents.slice(0, 8)} empty="No incident on this service." onChange={refresh} />
         </section>

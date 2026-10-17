@@ -7,7 +7,7 @@ import type { Incident } from "../types";
 import { SeverityBadge, StatusBadge } from "./Badges";
 
 /**
- * Incident rows in the PagerDuty style: severity stripe, what and where, how long, and
+ * Incident rows: severity band, what and where, how long, and
  * one-click acknowledge / resolve without leaving the list.
  */
 export function IncidentList({
@@ -58,7 +58,7 @@ export function IncidentList({
               <span className="small muted" title={incident.detected_at}>
                 {ongoing && !incident.recovered_at
                   ? `ongoing for ${formatDuration(duration)}`
-                  : `${incident.recovered_at && ongoing ? "metrics recovered · " : ""}detected ${formatAgo(incident.detected_at)}`}
+                  : `${incident.recovered_at && ongoing ? "metrics recovered, " : ""}detected ${formatAgo(incident.detected_at)}`}
               </span>
             </div>
             {showActions && ongoing && (

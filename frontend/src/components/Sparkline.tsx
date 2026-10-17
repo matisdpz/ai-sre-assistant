@@ -1,5 +1,5 @@
 /**
- * A tiny inline trend line (no axes) for service cards. Plain SVG keeps the overview
+ * A tiny inline trend line (no axes) for the overview lamps. It stretches to its container. Plain SVG keeps the overview
  * page free of the charting library. A dashed line marks the warning threshold.
  */
 export function Sparkline({
@@ -16,7 +16,7 @@ export function Sparkline({
   height?: number;
 }) {
   const known = values.filter((v): v is number => v !== null);
-  if (known.length < 2) return <svg width={width} height={height} aria-label={`${label}: no data`} />;
+  if (known.length < 2) return <svg className="sparkline" viewBox={`0 0 ${width} ${height}`} aria-label={`${label}: no data`} />;
   const max = Math.max(...known, threshold ?? 0) * 1.1 || 1;
   const x = (i: number) => (i / (values.length - 1)) * width;
   const y = (v: number) => height - 2 - (v / max) * (height - 4);
@@ -29,7 +29,13 @@ export function Sparkline({
   });
 
   return (
-    <svg width={width} height={height} role="img" aria-label={label} className="sparkline">
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+      role="img"
+      aria-label={label}
+      className="sparkline"
+    >
       {threshold != null && (
         <line x1={0} x2={width} y1={y(threshold)} y2={y(threshold)} className="spark-threshold" />
       )}

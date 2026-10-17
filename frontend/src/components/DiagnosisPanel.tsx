@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { api, ApiError } from "../api";
 import { formatDateTime } from "../format";
-import { CheckIcon, EyeIcon, SparkIcon } from "../icons";
+import { CheckIcon, EyeIcon } from "../icons";
 import type { AIStatus, Diagnosis } from "../types";
 import { usePolling } from "../usePolling";
 import { ConfidenceBadge } from "./Badges";
@@ -36,9 +36,7 @@ export function DiagnosisPanel({ incidentId, ai }: { incidentId: string; ai: AIS
   return (
     <section className="card ai-panel" aria-labelledby="ai-title">
       <div className="card-header">
-        <h2 id="ai-title">
-          <SparkIcon /> AI assistant
-        </h2>
+        <h2 id="ai-title">AI assistant</h2>
         {ai?.enabled && (
           <button type="button" className="btn ai" disabled={busy} onClick={analyze}>
             {busy ? "Analyzing…" : diagnosis ? "Regenerate" : "Analyze with AI"}
@@ -80,7 +78,7 @@ export function DiagnosisPanel({ incidentId, ai }: { incidentId: string; ai: AIS
 
           <div className="ai-block generated">
             <h3>
-              <SparkIcon /> Hypotheses <span className="muted small">AI-generated · not confirmed</span>
+              <span className="ai-mark" aria-hidden="true" /> Hypotheses <span className="muted small">AI-generated · not confirmed</span>
             </h3>
             <p>{diagnosis.summary}</p>
             {diagnosis.hypotheses.map((h) => (
